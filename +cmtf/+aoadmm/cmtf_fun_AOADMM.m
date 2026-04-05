@@ -41,7 +41,7 @@ function [G,out] = cmtf_fun_AOADMM(Z,Znorm_const, G,fh,gh,lscalar,uscalar,option
     end
     P = numel(Z.object);
     has_missing = isfield(Z, 'miss') && any(~cellfun(@isempty, Z.miss));
-    f_rel_missing = Inf;
+    f_rel_missing = NaN;
     G_transp_G = cell(nb_modes,1);
     A = cell(nb_modes,1);
     C = cell(nb_modes,1);
@@ -58,6 +58,9 @@ function [G,out] = cmtf_fun_AOADMM(Z,Znorm_const, G,fh,gh,lscalar,uscalar,option
     func_coupl(1) = f_couplings;
     func_constr(1) = f_constraints;
     func_PAR2_coupl(1) = f_PAR2_couplings;
+    if has_missing
+        func_rel_missing(1) = f_rel_missing;
+    end
     tstart = tic;
     time_at_it(1) = 0;
     %display first iteration
@@ -275,8 +278,16 @@ function [G,out] = cmtf_fun_AOADMM(Z,Znorm_const, G,fh,gh,lscalar,uscalar,option
        end
 
         %display
+        if has_missing
+            func_rel_missing(iter+1) = f_rel_missing;
+        end
+
         if strcmp(options.Display,'iter') && mod(iter,options.DisplayIters)==0
-            fprintf(1,'%6d %12f %12f %12f %17f %12f\n', iter, f_total, f_tensors, f_couplings,f_constraints,f_PAR2_couplings);
+            if has_missing
+                fprintf(1,'%6d %12f %12f %12f %17f %12f %12f\n', iter, f_total, f_tensors, f_couplings,f_constraints,f_PAR2_couplings, f_rel_missing);
+            else
+                fprintf(1,'%6d %12f %12f %12f %17f %12f\n', iter, f_total, f_tensors, f_couplings,f_constraints,f_PAR2_couplings);
+            end
         end
         iter = iter+1;
         
@@ -297,6 +308,7 @@ function [G,out] = cmtf_fun_AOADMM(Z,Znorm_const, G,fh,gh,lscalar,uscalar,option
     out.OuterIterations = iter-1;
     if has_missing
         out.f_rel_missing_final = f_rel_missing;
+        out.func_rel_missing_conv = func_rel_missing;
     end
     out.func_val_conv = func_val;
     out.func_coupl_conv = func_coupl;
@@ -307,10 +319,13 @@ function [G,out] = cmtf_fun_AOADMM(Z,Znorm_const, G,fh,gh,lscalar,uscalar,option
 
     %display final
     if strcmp(options.Display,'iter') || strcmp(options.Display,'final')
-        fprintf(1,'%6d %12f %12f %12f %12f %12f\n', iter-1, f_total, f_tensors, f_couplings,f_constraints,f_PAR2_couplings);
+        if has_missing
+            fprintf(1,'%6d %12f %12f %12f %12f %12f %12f\n', iter-1, f_total, f_tensors, f_couplings,f_constraints,f_PAR2_couplings, f_rel_missing);
+        else
+            fprintf(1,'%6d %12f %12f %12f %12f %12f\n', iter-1, f_total, f_tensors, f_couplings,f_constraints,f_PAR2_couplings);
+        end
     end
     
     warning(s); 
 
 end
-
